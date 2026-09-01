@@ -1,0 +1,55 @@
+name: DevSecOps CI Pipeline
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-secure:
+    name: Build, Scan, and Publish Container
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. Pull the fresh application code from the GitHub Repository
+    - name: Checkout Source Code
+      uses: actions/checkout@v4
+
+    # 2. Set up local Docker engine features
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    # 3. Compile and build the Docker image locally to prepare for scanning
+    - name: Build Local Image for Auditing
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        load: true
+        tags: enterprise-app:local
+
+    # 4. RUN THE DEVSECOPS SHIELD: Scan image layers for severe vulnerabilities
+    - name: Run Trivy Security Vulnerability Scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: 'enterprise-app:local'
+        format: 'table'
+        exit-code: '0' # Keeps pipeline green during learning phase, logs output cleanly
+        ignore-unfixed: true
+        severity: 'CRITICAL,HIGH'
+
+    # 5. Log into GitHub Container Registry to securely save our package
+    - name: Log in to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    # 6. Final safe publish tracking
+    - name: Package and Push Final Secure Container
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: |
+          ghcr.io/${{ github.repository }}/enterprise-app:latest
+          ghcr.io/${{ github.repository }}/enterprise-app:${{ github.sha }}
