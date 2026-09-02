@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: enterprise-app-deployment
+  namespace: default
+  labels:
+    app: enterprise-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: enterprise-app
+  template:
+    metadata:
+      labels:
+        app: enterprise-app
+    spec:
+      containers:
+      - name: enterprise-app
+        image: ghcr.io/vasanthmechanic8/enterprise-gitops-engine-v1/enterprise-app:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: enterprise-app-service
+  namespace: default
+spec:
+  type: ClusterIP
+  selector:
+    app: enterprise-app
+  ports:
+  - port: 80
+    targetPort: 5000
